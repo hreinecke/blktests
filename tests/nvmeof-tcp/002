@@ -27,7 +27,7 @@ test() {
 
 	echo "Running ${TEST_NAME}"
 
-	hostkey="$(nvme gen-dhchap-key 2> /dev/null)"
+	hostkey="$(nvme gen-dhchap-key -n ${subsys}1 2> /dev/null)"
 	if [ $? -ne 0 ] ; then
 		echo "nvme gen-dhchap-key command missing"
 		return 1
