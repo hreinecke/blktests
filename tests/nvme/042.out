@@ -1,0 +1,8 @@
+Running nvme/042
+Test host authentication
+NQN:blktests-subsystem-1 disconnected 1 controller(s)
+Test host authentication and invalid ctrl authentication
+no controller found
+Test host authentication and valid ctrl authentication
+NQN:blktests-subsystem-1 disconnected 1 controller(s)
+Test complete
