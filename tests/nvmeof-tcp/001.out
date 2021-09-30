@@ -1,0 +1,6 @@
+Running nvmeof-tcp/001
+nvme-subsys0 - NQN=blktests-subsystem-1
+\
+ +- nvme0 tcp traddr=127.0.0.1 trsvcid=4420 live 
+NQN:blktests-subsystem-1 disconnected 1 controller(s)
+Test complete
