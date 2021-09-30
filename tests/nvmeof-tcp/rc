@@ -271,11 +271,21 @@ _set_nvmet_ctrlkey() {
 
 _set_nvmet_hash() {
 	local nvmet_hostnqn="$1"
-	local nvmet_ctrlkey="$2"
+	local nvmet_hash="$2"
 	local cfs_path="${NVMET_CFS}/hosts/${nvmet_hostnqn}"
 
-	echo "${nvmet_ctrlkey}" > \
-	     "${cfs_path}/dhchap_ctrl_key"
+	echo "${nvmet_hash}" > \
+	     "${cfs_path}/dhchap_hash"
+	fi
+}
+
+_set_nvmet_dhgroup() {
+	local nvmet_hostnqn="$1"
+	local nvmet_dhgroup="$2"
+	local cfs_path="${NVMET_CFS}/hosts/${nvmet_hostnqn}"
+
+	echo "${nvmet_dhgroup}" > \
+	     "${cfs_path}/dhchap_dhgroup"
 	fi
 }
 
