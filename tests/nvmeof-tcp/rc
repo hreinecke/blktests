@@ -256,7 +256,6 @@ _set_nvmet_hostkey() {
 
 	echo "${nvmet_hostkey}" > \
 	     "${cfs_path}/dhchap_key"
-	fi
 }
 
 _set_nvmet_ctrlkey() {
@@ -266,7 +265,6 @@ _set_nvmet_ctrlkey() {
 
 	echo "${nvmet_ctrlkey}" > \
 	     "${cfs_path}/dhchap_ctrl_key"
-	fi
 }
 
 _set_nvmet_hash() {
@@ -276,7 +274,6 @@ _set_nvmet_hash() {
 
 	echo "${nvmet_hash}" > \
 	     "${cfs_path}/dhchap_hash"
-	fi
 }
 
 _set_nvmet_dhgroup() {
@@ -286,7 +283,6 @@ _set_nvmet_dhgroup() {
 
 	echo "${nvmet_dhgroup}" > \
 	     "${cfs_path}/dhchap_dhgroup"
-	fi
 }
 
 _remove_nvmet_ns() {
@@ -309,11 +305,10 @@ _remove_nvmet_subsystem() {
 }
 
 _remove_nvmet_host() {
-	local nvmet_subsystem="$1"
-	local nvmet_host="$2"
-	local subsys_path="${NVMET_CFS}/subsystems/${nvmet_subsystems}"
+	local nvmet_host="$1"
+	local host_path="${NVMET_CFS}/hosts/${nvmet_host}"
 
-	rm "${subsys_path}/allowed_hosts/${nvmet_host}"
+	rmdir "${host_path}"
 }
 	
 _add_nvmet_subsys_to_port() {

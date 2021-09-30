@@ -56,7 +56,7 @@ test() {
 		echo "couldn't generate host key with HMAC(sha256)"
 		return 1
 	fi
-	_set_nvmet_host_key "${hostnqn}" "${hostkey}"
+	_set_nvmet_hostkey "${hostnqn}" "${hostkey}"
 	
 	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
 	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
@@ -71,7 +71,7 @@ test() {
 		echo "couldn't generate host key with HMAC(sha384)"
 		return 1
 	fi
-	_set_nvmet_host_key "${hostnqn}" "${hostkey}"
+	_set_nvmet_hostkey "${hostnqn}" "${hostkey}"
 	
 	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
 	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
@@ -86,7 +86,7 @@ test() {
 		echo "couldn't generate host key with HMAC(sha384)"
 		return 1
 	fi
-	echo "${hostkey}" > /sys/kernel/config/nvmet/hosts/${hostnqn}/dhchap_key
+	_set_nvmet_hostkey "${hostnqn}" "${hostkey}"
 	
 	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
 	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
