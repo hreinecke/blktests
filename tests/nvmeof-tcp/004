@@ -43,45 +43,35 @@ test() {
 	_add_nvmet_subsys_to_port "${port}" "${subsys}1"
 	_create_nvmet_host "${subsys}1" "${hostnqn}" "${hostkey}"
 
-	_set_nvmet_hash "${hostnqn}" "hmac(sha384)"
+	for hash in "hmac(sha384)" "hmac(sha512)" ; do
 
-	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
-	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
-	     --hostnqn="${hostnqn}" --hostid="${hostid}"
+		echo "Testing hash ${hash}"
 
-	nvme list-subsys
+		_set_nvmet_hash "${hostnqn}" "${hash}"
 
-	nvme disconnect -n "${subsys}1"
+		nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
+		     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
+		     --hostnqn="${hostnqn}" --hostid="${hostid}"
 
-	_set_nvmet_hash "${hostnqn}" "hmac(sha512)"
+		nvme list-subsys
 
-	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
-	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
-	     --hostnqn="${hostnqn}" --hostid="${hostid}"
+		nvme disconnect -n "${subsys}1"
+	done
 
-	nvme list-subsys
+	for dhgroup in "ffdhe2048" "ffdhe3072" "ffdhe4096" "ffdhe6144" "ffdhe8192" ; do
 
-	nvme disconnect -n "${subsys}1"
+		echo "Testing DH group ${dhgroup}"
 
-	_set_nvmet_dhgroup "${hostnqn}" "ffdhe2048"
+		_set_nvmet_dhgroup "${hostnqn}" "${dhgroup}"
 	
-	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
-	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
-	     --hostnqn="${hostnqn}" --hostid="${hostid}"
+		nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
+		     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
+		     --hostnqn="${hostnqn}" --hostid="${hostid}"
 
-	nvme list-subsys
+		nvme list-subsys
 
-	nvme disconnect -n "${subsys}1"
-
-	_set_nvmet_dhgroup "${hostnqn}" "ffdhe8192"
-	
-	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
-	     -a "${def_traddr}" -s "${def_trsvcid}" -S "${hostkey}" \
-	     --hostnqn="${hostnqn}" --hostid="${hostid}"
-
-	nvme list-subsys
-
-	nvme disconnect -n "${subsys}1"
+		nvme disconnect -n "${subsys}1"
+	done
 
 	_remove_nvmet_subsystem_from_port "${port}" "${subsys}1"
 	_remove_nvmet_subsystem "${subsys}1"
