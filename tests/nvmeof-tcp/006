@@ -54,7 +54,7 @@ test() {
 	
 	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
 	     -a "${def_traddr}" -s "${def_trsvcid}" \
-	     -S "${hostkey}" -C "${ctrlkey}" \
+	     -S "${hostkey}" \
 	     --hostnqn="${hostnqn}" --hostid="${hostid}"
 
 	nvme list-subsys
@@ -70,10 +70,6 @@ test() {
 	new_hostkey="$(nvme gen-dhchap-key -n ${subsys}1 2> /dev/null)"
 
 	_set_nvmet_hostkey "${hostnqn}" "${new_hostkey}"
-
-	echo "Re-authenticate with original host key (should fail)"
-
-	echo "${hostkey}" > /sys/class/nvme/${ctrl}/dhchap_key
 
 	echo "Re-authenticate with new host key"
 
