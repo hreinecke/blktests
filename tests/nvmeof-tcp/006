@@ -54,7 +54,7 @@ test() {
 	
 	nvme connect -t "${nvme_trtype}" -n "${subsys}1" \
 	     -a "${def_traddr}" -s "${def_trsvcid}" \
-	     -S "${hostkey}" \
+	     -S "${hostkey}" -C "${ctrlkey}" \
 	     --hostnqn="${hostnqn}" --hostid="${hostid}"
 
 	nvme list-subsys
@@ -63,7 +63,7 @@ test() {
 
 	echo "Re-authenticate with original host key"
 
-	echo "${hostkey}" > /sys/class/nvme/${ctrl}/dhchap_key
+	echo "${hostkey}" > /sys/class/nvme/${ctrl}/dhchap_secret
 
 	echo "Renew host key on the controller"
 
@@ -73,7 +73,30 @@ test() {
 
 	echo "Re-authenticate with new host key"
 
-	echo "${new_hostkey}" > /sys/class/nvme/${ctrl}/dhchap_key
+	echo "${new_hostkey}" > /sys/class/nvme/${ctrl}/dhchap_secret
+
+	nvme list-subsys
+
+	echo "Renew ctrl key on the controller"
+
+	new_ctrlkey="$(nvme gen-dhchap-key -n ${subsys}1 2> /dev/null)"
+
+	_set_nvmet_ctrlkey "${hostnqn}" "${new_ctrlkey}"
+
+	echo "Re-authenticate with new ctrl key"
+
+	echo "${new_ctrlkey}" > /sys/class/nvme/${ctrl}/dhchap_ctrl_secret
+
+	nvme list-subsys
+
+	echo "Change DH group to ffdhe8192"
+
+	_nvmet_set_dhgroup "${subsys}1" "ffdhe8192"
+
+	echo "Re-authenticate with changed DH group"
+	echo "${new_hostkey}" > /sys/class/nvme/${ctrl}/dhchap_secret
+
+	nvme list-subsys
 
 	nvme disconnect -n "${subsys}1"
 
