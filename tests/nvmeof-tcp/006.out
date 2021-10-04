@@ -1,0 +1,23 @@
+Running nvmeof-tcp/006
+nvme-subsys0 - NQN=blktests-subsystem-1
+\
+ +- nvme0 tcp traddr=127.0.0.1,trsvcid=4420 live
+Re-authenticate with original host key
+Renew host key on the controller
+Re-authenticate with new host key
+nvme-subsys0 - NQN=blktests-subsystem-1
+\
+ +- nvme0 tcp traddr=127.0.0.1,trsvcid=4420 live
+Renew ctrl key on the controller
+Re-authenticate with new ctrl key
+nvme-subsys0 - NQN=blktests-subsystem-1
+\
+ +- nvme0 tcp traddr=127.0.0.1,trsvcid=4420 live
+Change DH group to ffdhe8192
+tests/nvmeof-tcp/006: line 94: _nvmet_set_dhgroup: command not found
+Re-authenticate with changed DH group
+nvme-subsys0 - NQN=blktests-subsystem-1
+\
+ +- nvme0 tcp traddr=127.0.0.1,trsvcid=4420 live
+NQN:blktests-subsystem-1 disconnected 1 controller(s)
+Test complete
