@@ -204,22 +204,6 @@ get_bdev() {
 	get_bdev_n "$1" "$elevator" "$ini_timeout"
 }
 
-configure_nvmet_port() {
-	local p=$1 ipv4_addr=$2 i
-
-	echo "Configuring $p with address $ipv4_addr as an NVMeOF target port" \
-	     >>"$FULL"
-
-	cd /sys/kernel/config/nvmet/ports
-	for ((i=1;1;i++)); do [ -e "$i" ] || break; done
-	mkdir "$i"
-	cd "$i"
-	echo ipv4            > addr_adrfam
-	echo ${nvme_trtype}  > addr_trtype
-	echo -n "$ipv4_addr" > addr_traddr
-	echo -n ${nvme_port} > addr_trsvcid
-}
-
 start_nvme_target() {
 	local d i ipv4_addr num_ports=0
 
@@ -239,11 +223,12 @@ start_nvme_target() {
 	echo 1 >attr_allow_any_host
 	for i in $(rdma_network_interfaces); do
 		ipv4_addr=$(get_ipv4_addr "$i")
-		if [ -n "${ipv4_addr}" ]; then
-			configure_nvmet_port "$i" "${ipv4_addr}"
-			((num_ports++))
-			true
-		fi
+		[ -n "${ipv4_addr}" ] || continue
+		echo "Configuring $p with address $ipv4_addr as an NVMeOF target port" \
+	     >>"$FULL"
+
+		_create_nvmet_port "${nvme_trtype}" "${ipv4_addr}" ipv4 "${nvme_port}"
+		((num_ports++)) || true
 	done
 	if [[ $num_ports = 0 ]]; then
 		echo "No NVMeOF target ports"
