@@ -48,8 +48,6 @@ group_device_requires() {
 	_require_test_dev_is_nvme
 }
 
-NVMET_CFS="/sys/kernel/config/nvmet/"
-
 _require_test_dev_is_nvme() {
 	if ! readlink -f "$TEST_DEV_SYSFS/device" | grep -q nvme; then
 		SKIP_REASON="$TEST_DEV is not a NVMe device"

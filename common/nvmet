@@ -6,6 +6,8 @@
 
 . common/shellcheck
 
+NVMET_CFS="/sys/kernel/config/nvmet/"
+
 _setup_nvmet() {
 	_register_test_cleanup _cleanup_nvmet
 	modprobe nvmet
@@ -40,15 +42,6 @@ _cleanup_nvmet() {
 	trap '' SIGINT
 
 	shopt -s nullglob
-
-	for dev in /sys/class/nvme/nvme*; do
-		dev="$(basename "$dev")"
-		transport="$(cat "/sys/class/nvme/${dev}/transport")"
-		if [[ "$transport" == "${nvme_trtype}" ]]; then
-			echo "WARNING: Test did not clean up ${nvme_trtype} device: ${dev}"
-			_nvme_disconnect_ctrl "${dev}"
-		fi
-	done
 
 	for port in "${NVMET_CFS}"/ports/*; do
 		name=$(basename "${port}")

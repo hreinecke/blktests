@@ -86,24 +86,6 @@ rdma_network_interfaces() {
 		sort -u
 }
 
-# Check whether any stacked block device holds block device $1. If so, echo
-# the name of the holder.
-held_by() {
-	local d e dev=$1
-
-	while [ -L "$dev" ]; do
-		dev=$(realpath "$dev")
-	done
-	dev=${dev#/dev/}
-	for d in /sys/class/block/*/holders/*; do
-		[ -e "$d" ] || continue
-		e=$(basename "$d")
-		if [ "$e" = "$dev" ]; then
-			echo "/dev/$(basename "$(dirname "$(dirname "$d")")")"
-		fi
-	done
-}
-
 # Sleep until either $1 seconds have elapsed or until the deadline $2 has been
 # reached. Return 1 if and only if the deadline has been met.
 sleep_until() {
@@ -307,56 +289,6 @@ get_scheduler_list() {
 	else
 		return 1
 	fi
-}
-
-# Get a /dev/... path that points at dm device number $1. Set its I/O scheduler
-# to $2 and its timeout to $3. The shell script that includes this file must
-# define a function get_bdev_path() that translates device number $1 into a
-# /dev/disk/... path.
-get_bdev_n() {
-	local b d dev elevator=$2 h i=$1 j realdev timeout=$3
-
-	is_number "$i" || return $?
-	dev=""
-	for ((j=0;j<50;j++)); do
-		if dev=$(get_bdev_path "$i") && [ -n "$dev" ] && [ -e "$dev" ]
-		then
-			break
-		fi
-		echo reconfigure | multipathd -k >&/dev/null
-		sleep .1
-	done
-	if [ -z "$dev" ] || [ ! -e "$dev" ]; then
-		echo "Could not find device $i -> $dev"
-		return 1
-	fi
-	if [ ! -L "$dev" ]; then
-		echo "$dev: not a soft link"
-		return 1
-	fi
-	realdev=$(readlink "$dev" 2>/dev/null || echo "?")
-	echo "Using $dev -> ${realdev}" >>"$FULL"
-	for ((j=0; j<50; j++)); do
-		blockdev --getbsz "$dev" >&/dev/null && break
-		echo reconfigure | multipathd -k >& /dev/null
-		sleep .1
-	done
-	if ! blockdev --getbsz "$dev" >&/dev/null; then
-		echo "$dev: querying block size failed"
-		return 1
-	fi
-	b=$(basename "$realdev")
-	set_scheduler "$b" "$elevator"
-	for d in /sys/class/block/*"/holders/$b"; do
-		[ -e "$d" ] || continue
-		h="$(basename "$(dirname "$(dirname "$d")")")"
-		set_scheduler "$h" "${elevator}"
-		if [ -e "/sys/class/block/$h/device/timeout" ]; then
-			echo "$timeout" > "/sys/class/block/$h/device/timeout"
-		fi
-	done
-	echo "get_bdev_n() returned $dev" >>"$FULL"
-	echo "$dev"
 }
 
 # Full path of mountpoint $1. fio will be run on top of the filesystem mounted

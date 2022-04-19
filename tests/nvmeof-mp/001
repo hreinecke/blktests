@@ -33,5 +33,7 @@ wait_for_devices() {
 
 test() {
 	trap 'trap "" EXIT; teardown' EXIT
-	setup && wait_for_devices && echo Passed
+	setup
+	wait_for_devices
+	echo Passed
 }
