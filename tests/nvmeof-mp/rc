@@ -5,6 +5,8 @@
 . common/rc
 . common/multipath-over-rdma
 
+set -o errexit
+
 namespace=(1)
 elevator=none
 nvme_subsysnqn="nvme-test"
@@ -78,30 +80,32 @@ use_blk_mq() {
 		fi
 	)
 
-	log_out &&
-		remove_mpath_devs &&
-		start_client &&
-		log_in &&
-		return 0
-
-	echo "use_blk_mq $* failed" >>"$FULL"
-	return 1
+	trapcmd="echo use_blk_mq \$\* failed >> $FULL"
+	trap "$trapcmd" EXIT
+	log_out
+	remove_mpath_devs
+	start_client
+	log_in
+	trap - EXIT
+	return 0
 }
 
 log_in() {
 	local i ipv4_addr loginparams
 
-	[ -c /dev/nvme-fabrics ] &&
-		for i in $(rdma_network_interfaces); do
-			ipv4_addr=$(get_ipv4_addr "$i")
-			if [ -n "${ipv4_addr}" ]; then
-				loginparams="transport=rdma,traddr=${ipv4_addr},trsvcid=${nvme_port},nqn=$nvme_subsysnqn"
-				echo "Login parameters: $loginparams" >>"$FULL"
-				{
-					echo -n "$loginparams" > /dev/nvme-fabrics
-				} 2>>"$FULL"
-			fi
-		done
+	if [ ! -c /dev/nvme-fabrics ]; then
+		return false
+	fi
+	for i in $(rdma_network_interfaces); do
+		ipv4_addr=$(get_ipv4_addr "$i")
+		if [ -n "${ipv4_addr}" ]; then
+			loginparams="transport=rdma,traddr=${ipv4_addr},trsvcid=${nvme_port},nqn=$nvme_subsysnqn"
+			echo "Login parameters: $loginparams" >>"$FULL"
+			{
+				echo -n "$loginparams" > /dev/nvme-fabrics
+			} 2>>"$FULL"
+		fi
+	done
 }
 
 log_out() {
@@ -152,11 +156,11 @@ remove_mpath_devs() {
 }
 
 start_nvme_client() {
-	modprobe nvme-core dyndbg=+pmf &&
-		modprobe nvme dyndbg=+pmf &&
-		modprobe nvme-fabrics dyndbg=+pmf &&
-		modprobe nvme-rdma dyndbg=+pmf &&
-		mkdir -p "$(mountpoint 0)"
+	modprobe nvme-core dyndbg=+pmf
+	modprobe nvme dyndbg=+pmf
+	modprobe nvme-fabrics dyndbg=+pmf
+	modprobe nvme-rdma dyndbg=+pmf
+	mkdir -p "$(mountpoint 0)"
 	udevadm settle
 	if [ ! -c /dev/nvme-fabrics ]; then
 		echo "Error:  /dev/nvme-fabrics not available"
@@ -203,75 +207,72 @@ configure_nvmet_port() {
 
 	echo "Configuring $p with address $ipv4_addr as an NVMeOF target port" \
 	     >>"$FULL"
-	(
-		cd /sys/kernel/config/nvmet/ports &&
-			for ((i=1;1;i++)); do [ -e "$i" ] || break; done &&
-			mkdir "$i" &&
-			cd "$i" &&
-			echo ipv4            > addr_adrfam &&
-			echo rdma            > addr_trtype &&
-			echo -n "$ipv4_addr" > addr_traddr &&
-			echo -n ${nvme_port} > addr_trsvcid
-	)
+
+	cd /sys/kernel/config/nvmet/ports
+	for ((i=1;1;i++)); do [ -e "$i" ] || break; done
+	mkdir "$i"
+	cd "$i"
+	echo ipv4            > addr_adrfam
+	echo rdma            > addr_trtype
+	echo -n "$ipv4_addr" > addr_traddr
+	echo -n ${nvme_port} > addr_trsvcid
 }
 
 start_nvme_target() {
 	local d i ipv4_addr num_ports=0
 
 	echo "Configuring NVMe target driver ..." >>"$FULL"
-	modprobe nvmet dyndbg=+pmf &&
-		modprobe nvmet-rdma dyndbg=+pmf &&
-		sleep .1 &&
-		(
-			cd /sys/kernel/config/nvmet/subsystems &&
-				mkdir ${nvme_subsysnqn} &&
-				cd ${nvme_subsysnqn} &&
-				cd namespaces &&
-				mkdir "${namespace[0]}" &&
-				cd "${namespace[0]}" &&
-				echo 00000000-0000-0000-0000-000000000000 >device_nguid &&
-				echo -n /dev/nullb0 >device_path &&
-				echo 1 >enable &&
-				cd ../.. &&
-				echo 1 >attr_allow_any_host
-		) && for i in $(rdma_network_interfaces); do
-			ipv4_addr=$(get_ipv4_addr "$i")
-			if [ -n "${ipv4_addr}" ]; then
-				configure_nvmet_port "$i" "${ipv4_addr}"
-				((num_ports++))
-				true
-			fi
-		done &&
-		if [[ $num_ports = 0 ]]; then
-			echo "No NVMeOF target ports"
-			false
-		fi && (
-			cd /sys/kernel/config/nvmet/ports &&
-				for i in *; do
-					[ -e "$i" ] && (
-						cd "$i/subsystems" &&
-							ln -s "../../../subsystems/${nvme_subsysnqn}" .
-					)
-				done
-		)
+	modprobe nvmet dyndbg=+pmf
+	modprobe nvmet-rdma dyndbg=+pmf
+	sleep .1
+
+	cd /sys/kernel/config/nvmet/subsystems
+	mkdir ${nvme_subsysnqn}
+	cd namespaces
+	mkdir "${namespace[0]}"
+	cd "${namespace[0]}"
+	echo 00000000-0000-0000-0000-000000000000 >device_nguid
+	echo -n /dev/nullb0 >device_path
+	echo 1 >enable
+	cd ../..
+	echo 1 >attr_allow_any_host
+	for i in $(rdma_network_interfaces); do
+		ipv4_addr=$(get_ipv4_addr "$i")
+		if [ -n "${ipv4_addr}" ]; then
+			configure_nvmet_port "$i" "${ipv4_addr}"
+			((num_ports++))
+			true
+		fi
+	done
+	if [[ $num_ports = 0 ]]; then
+		echo "No NVMeOF target ports"
+		return
+	fi
+	cd /sys/kernel/config/nvmet/ports
+	for i in *; do
+		if [ -e "$i" ] ; then
+			cd "$i/subsystems"
+			ln -s "../../../subsystems/${nvme_subsysnqn}" .
+		fi
+	done
 	echo "Configured NVMe target driver"
 }
 
 stop_nvme_target() {
 	local d
 
-	(
-		cd /sys/kernel/config/nvmet 2>/dev/null &&
-			rm -f -- ports/*/subsystems/* &&
-			for d in {*/*/*/*,*/*}; do
-				[ -e "$d" ] &&
-				[[ ! "$(basename "$(dirname "$d")")" =~ ana_groups|passthru ]] &&
-				rmdir "$d"
-			done
-	)
-	unload_module nvmet_rdma &&
-		unload_module nvmet &&
-		_exit_null_blk
+	cd /sys/kernel/config/nvmet 2>/dev/null
+	rm -f -- ports/*/subsystems/*
+	for d in {*/*/*/*,*/*}; do
+		[ -e "$d" ] || continue
+		if [[ ! "$(basename "$(dirname "$d")")" =~ ana_groups|passthru ]] ; then
+			rmdir "$d"
+		fi
+	done
+
+	unload_module nvmet_rdma
+	unload_module nvmet
+	_exit_null_blk
 }
 
 start_target() {
@@ -283,9 +284,9 @@ stop_target() {
 }
 
 shutdown_client() {
-	remove_mpath_devs &&
-		log_out &&
-		stop_client
+	remove_mpath_devs
+	log_out
+	stop_client
 }
 
 # Set up test configuration
