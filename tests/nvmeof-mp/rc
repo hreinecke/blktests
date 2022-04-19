@@ -4,6 +4,7 @@
 
 . common/rc
 . common/multipath-over-rdma
+. common/nvmet
 
 set -o errexit
 
@@ -11,6 +12,7 @@ namespace=(1)
 elevator=none
 nvme_subsysnqn="nvme-test"
 nvme_port=7777
+nvme_trtype=${nvme_trtype:-"rdma"}
 ini_timeout=1
 
 group_requires() {
@@ -35,8 +37,8 @@ and multipathing has been enabled in the nvme_core kernel module"
 		rdma_cm
 		ib_ipoib
 		ib_umad
-		nvme-rdma
-		nvmet-rdma
+		nvme-${nvme_trtype}
+		nvmet-${nvme_trtype}
 		rdma_rxe
 		scsi_dh_alua
 		scsi_dh_emc
@@ -99,7 +101,7 @@ log_in() {
 	for i in $(rdma_network_interfaces); do
 		ipv4_addr=$(get_ipv4_addr "$i")
 		if [ -n "${ipv4_addr}" ]; then
-			loginparams="transport=rdma,traddr=${ipv4_addr},trsvcid=${nvme_port},nqn=$nvme_subsysnqn"
+			loginparams="transport=${nvme_trtype},traddr=${ipv4_addr},trsvcid=${nvme_port},nqn=$nvme_subsysnqn"
 			echo "Login parameters: $loginparams" >>"$FULL"
 			{
 				echo -n "$loginparams" > /dev/nvme-fabrics
@@ -159,7 +161,7 @@ start_nvme_client() {
 	modprobe nvme-core dyndbg=+pmf
 	modprobe nvme dyndbg=+pmf
 	modprobe nvme-fabrics dyndbg=+pmf
-	modprobe nvme-rdma dyndbg=+pmf
+	modprobe nvme-${nvme_trtype} dyndbg=+pmf
 	mkdir -p "$(mountpoint 0)"
 	udevadm settle
 	if [ ! -c /dev/nvme-fabrics ]; then
@@ -168,7 +170,7 @@ start_nvme_client() {
 }
 
 stop_nvme_client() {
-	unload_module nvme-rdma || return $?
+	unload_module nvme-${nvme_trtype} || return $?
 	unload_module nvme-fabrics || return $?
 	# Ignore nvme and nvme-core unload errors - this test may be run on a
 	# system equipped with one or more NVMe SSDs.
@@ -213,7 +215,7 @@ configure_nvmet_port() {
 	mkdir "$i"
 	cd "$i"
 	echo ipv4            > addr_adrfam
-	echo rdma            > addr_trtype
+	echo ${nvme_trtype}  > addr_trtype
 	echo -n "$ipv4_addr" > addr_traddr
 	echo -n ${nvme_port} > addr_trsvcid
 }
@@ -223,7 +225,7 @@ start_nvme_target() {
 
 	echo "Configuring NVMe target driver ..." >>"$FULL"
 	modprobe nvmet dyndbg=+pmf
-	modprobe nvmet-rdma dyndbg=+pmf
+	modprobe nvmet-${nvme_trtype} dyndbg=+pmf
 	sleep .1
 
 	cd /sys/kernel/config/nvmet/subsystems
@@ -258,29 +260,13 @@ start_nvme_target() {
 	echo "Configured NVMe target driver"
 }
 
-stop_nvme_target() {
-	local d
-
-	cd /sys/kernel/config/nvmet 2>/dev/null
-	rm -f -- ports/*/subsystems/*
-	for d in {*/*/*/*,*/*}; do
-		[ -e "$d" ] || continue
-		if [[ ! "$(basename "$(dirname "$d")")" =~ ana_groups|passthru ]] ; then
-			rmdir "$d"
-		fi
-	done
-
-	unload_module nvmet_rdma
-	unload_module nvmet
-	_exit_null_blk
-}
-
 start_target() {
 	start_nvme_target
 }
 
 stop_target() {
-	stop_nvme_target
+	_cleanup_nvmet
+	_exit_null_blk
 }
 
 shutdown_client() {
