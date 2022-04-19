@@ -224,8 +224,7 @@ start_nvme_target() {
 	local d i ipv4_addr num_ports=0
 
 	echo "Configuring NVMe target driver ..." >>"$FULL"
-	modprobe nvmet dyndbg=+pmf
-	modprobe nvmet-${nvme_trtype} dyndbg=+pmf
+	_setup_nvmet
 	sleep .1
 
 	cd /sys/kernel/config/nvmet/subsystems
@@ -265,7 +264,6 @@ start_target() {
 }
 
 stop_target() {
-	_cleanup_nvmet
 	_exit_null_blk
 }
 
