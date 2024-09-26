@@ -450,7 +450,7 @@ _setup_nvmet_port_ana() {
 		fi
 		mkdir "${anaport}"
 	fi
-	echo "${anastate}" > "${anaport}"
+	echo "${anastate}" > "${anaport}/ana_state"
 }
 
 _remove_nvmet_port() {
@@ -499,6 +499,19 @@ _create_nvmet_ns() {
 	printf "%s" "${blkdev}" > "${ns_path}/device_path"
 	printf "%s" "${uuid}" > "${ns_path}/device_uuid"
 	printf 1 > "${ns_path}/enable"
+}
+
+_setup_nvmet_ns_ana() {
+	local nvmet_subsystem="$1"
+	local nsid="$2"
+	local anagrpid="${3:-def_anagrpid}"
+	local subsys_path="${NVMET_CFS}/subsystems/${nvmet_subsystem}"
+	local ns_path="${subsys_path}/namespaces/${nsid}"
+
+	if [[ ! -d "${ns_path}" ]]; then
+		return
+	fi
+	echo "${anagrpid}" > "${ns_path}/anagrpid"
 }
 
 _create_nvmet_subsystem() {
