@@ -270,6 +270,7 @@ _nvme_connect_subsys() {
 	local reconnect_delay=""
 	local ctrl_loss_tmo=""
 	local no_wait=false
+	local ports
 	local i
 
 	while [[ $# -gt 0 ]]; do
@@ -329,41 +330,40 @@ _nvme_connect_subsys() {
 		esac
 	done
 
-	ARGS=(--transport "${nvme_trtype}" --nqn "${subsysnqn}")
-	if [[ "${nvme_trtype}" == "fc" ]] ; then
-		ARGS+=(--traddr "${def_traddr}" --host-traddr "${def_host_traddr}")
-	elif [[ "${nvme_trtype}" != "loop" ]]; then
-		ARGS+=(--traddr "${def_traddr}" --trsvcid "${def_trsvcid}")
-	fi
-	ARGS+=(--hostnqn="${hostnqn}")
-	ARGS+=(--hostid="${hostid}")
-	if [[ -n "${hostkey}" ]]; then
-		ARGS+=(--dhchap-secret="${hostkey}")
-	fi
-	if [[ -n "${ctrlkey}" ]]; then
-		ARGS+=(--dhchap-ctrl-secret="${ctrlkey}")
-	fi
-	if [[ -n "${nr_io_queues}" ]]; then
-		ARGS+=(--nr-io-queues="${nr_io_queues}")
-	fi
-	if [[ -n "${nr_write_queues}" ]]; then
-		ARGS+=(--nr-write-queues="${nr_write_queues}")
-	fi
-	if [[ -n "${nr_poll_queues}" ]]; then
-		ARGS+=(--nr-poll-queues="${nr_poll_queues}")
-	fi
-	if [[ -n "${keep_alive_tmo}" ]]; then
-		ARGS+=(--keep-alive-tmo="${keep_alive_tmo}")
-	fi
-	if [[ -n "${reconnect_delay}" ]]; then
-		ARGS+=(--reconnect-delay="${reconnect_delay}")
-	fi
-	if [[ -n "${ctrl_loss_tmo}" ]]; then
-		ARGS+=(--ctrl-loss-tmo="${ctrl_loss_tmo}")
-	fi
+	_get_nvmet_ports "${subsysnqn}" ports
+	for port in "${ports[@]}"; do
+		_get_nvmet_port_params "${port}" ARGS
+		ARGS+=(--nqn "${subsysnqn}")
+		ARGS+=(--hostnqn="${hostnqn}")
+		ARGS+=(--hostid="${hostid}")
+		if [[ -n "${hostkey}" ]]; then
+			ARGS+=(--dhchap-secret="${hostkey}")
+		fi
+		if [[ -n "${ctrlkey}" ]]; then
+			ARGS+=(--dhchap-ctrl-secret="${ctrlkey}")
+		fi
+		if [[ -n "${nr_io_queues}" ]]; then
+			ARGS+=(--nr-io-queues="${nr_io_queues}")
+		fi
+		if [[ -n "${nr_write_queues}" ]]; then
+			ARGS+=(--nr-write-queues="${nr_write_queues}")
+		fi
+		if [[ -n "${nr_poll_queues}" ]]; then
+			ARGS+=(--nr-poll-queues="${nr_poll_queues}")
+		fi
+		if [[ -n "${keep_alive_tmo}" ]]; then
+			ARGS+=(--keep-alive-tmo="${keep_alive_tmo}")
+		fi
+		if [[ -n "${reconnect_delay}" ]]; then
+			ARGS+=(--reconnect-delay="${reconnect_delay}")
+		fi
+		if [[ -n "${ctrl_loss_tmo}" ]]; then
+			ARGS+=(--ctrl-loss-tmo="${ctrl_loss_tmo}")
+		fi
 
-	nvme connect "${ARGS[@]}" 2> /dev/null | grep -v "connecting to device:"
-
+		nvme connect "${ARGS[@]}" 2> /dev/null | grep -v "connecting to device:"
+		unset ARGS
+	done
 	# Wait until device file and uuid/wwid sysfs attributes get ready for
 	# all namespaces.
 	if [[ ${no_wait} = false ]]; then
@@ -578,6 +578,27 @@ _get_nvmet_ports() {
 			nvmet_ports+=("${port##*/}")
 		fi
 	done
+}
+
+_get_nvmet_port_params() {
+	local port="$1"
+	local -n args="$2"
+	local cfs_path="${NVMET_CFS}/ports/${port}"
+	local trtype
+	local traddr
+	local trsvcid
+
+	[[ -d "${cfs_path}" ]] || exit 1
+	trtype=$(cat "${cfs_path}/addr_trtype")
+	args+=(--transport "${trtype}")
+	traddr=$(cat "${cfs_path}/addr_traddr")
+	args+=(--traddr "${traddr}")
+	if [[ "${trtype}" == "tcp" ]] || [[ "${trtype}" == "rdma" ]]; then
+		trsvcid=$(cat "${cfs_path}/addr_trsvcid")
+		args+=(--trsvcid "${trsvcid}")
+	elif [[ "${trtype}" == "fc" ]]; then
+		args+=(--host-traddr "${def_host_traddr}")
+	fi
 }
 
 _find_nvme_dev() {
