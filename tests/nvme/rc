@@ -193,18 +193,23 @@ _test_dev_nvme_nsid() {
 }
 
 _nvme_get_ctrl_list() {
+	local -n ctrls="$1"
 	local subsys
 	local c
 
 	subsys=$(readlink  "${TEST_DEV_SYSFS}/device/subsystem")
 	case $subsys in
 		*/nvme)
-			readlink -f "${TEST_DEV_SYSFS}/device"
+			ctrl=$(readlink -f "${TEST_DEV_SYSFS}/device")
+			ctrls+=("$ctrl")
 			;;
 		*/nvme-subsystem)
 			for c in "${TEST_DEV_SYSFS}"/device/nvme*; do
 				[[ -L "$c" ]] || continue
-				[[ -f "$c/dev" ]] && readlink -f "$c"
+				if [[ -f "$c/dev" ]]; then
+					ctrl=$(readlink -f "$c")
+					ctrls+=("$ctrl")
+				fi
 			done
 			;;
 	esac

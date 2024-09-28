@@ -48,9 +48,8 @@ test_device() {
 	echo "Running ${TEST_NAME}"
 	create_rescan_script
 
-	while IFS= read -r line; do
-		ctrls+=("$line")
-	done < <(_nvme_get_ctrl_list)
+	_nvme_get_ctrl_list ctrls
+
 	_run_fio_verify_io --filename="$TEST_DEV" --time_based &> "$FULL" &
 
 	for i in "${!ctrls[@]}"; do
