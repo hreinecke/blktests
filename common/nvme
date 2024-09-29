@@ -408,18 +408,13 @@ _nvme_disconnect_subsys() {
 
 _nvme_ns_ready() {
 	local subsysnqn="${1}"
-	local ns_path ns_id dev
-	local cfs_path="${NVMET_CFS}/subsystems/$subsysnqn"
+	local ns
 
-	dev=$(_find_nvme_dev "$subsysnqn")
-	for ns_path in "${cfs_path}/namespaces/"*; do
-		ns_id=${ns_path##*/}
-		if [[ ! -b /dev/${dev}n${ns_id} ||
-			   ! -e /sys/block/${dev}n${ns_id}/uuid ||
-			   ! -e /sys/block/${dev}n${ns_id}/wwid ]]; then
-			return 1
-		fi
-	done
+	ns=$(_find_nvme_ns "${def_subsys_uuid}")
+	if [[ -z "${ns}" ]] || [[ ! -b /dev/${ns} ]] ||
+		   [[ ! -e /sys/block/${ns}/wwid ]]; then
+		return 1;
+	fi
 	return 0
 }
 
