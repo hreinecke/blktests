@@ -369,10 +369,11 @@ _nvme_connect_subsys() {
 	if [[ ${no_wait} = false ]]; then
 		udevadm settle
 		for ((i = 0; i < 10; i++)); do
-			_nvme_ns_ready "${subsysnqn}" && return
+			_nvme_ns_ready "${subsysnqn}" && return 0
 			sleep .1
 		done
 	fi
+	return 1
 }
 
 _nvme_disconnect_subsys() {
@@ -595,8 +596,10 @@ _find_nvme_dev() {
 		subsysnqn="$(cat "/sys/class/nvme/${dev}/subsysnqn" 2>/dev/null)"
 		if [[ "$subsysnqn" == "$subsys" ]]; then
 			echo "$dev"
+			return 0
 		fi
 	done
+	return 1
 }
 
 _find_nvme_ns() {
@@ -613,8 +616,10 @@ _find_nvme_ns() {
 		uuid=$(cat "${ns}/uuid")
 		if [[ "${subsys_uuid}" == "${uuid}" ]]; then
 			basename "${ns}"
+			return 0
 		fi
 	done
+	return 1
 }
 
 _nvmet_target_cleanup() {
