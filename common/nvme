@@ -491,17 +491,17 @@ _create_nvmet_ns() {
 	local nvmet_subsystem="$1"
 	local nsid="$2"
 	local blkdev="$3"
-	local uuid="00000000-0000-0000-0000-000000000000"
+	local uuid="${4:-00000000-0000-0000-0000-000000000000}"
+	local grpid="${5:-1}"
 	local subsys_path="${NVMET_CFS}/subsystems/${nvmet_subsystem}"
 	local ns_path="${subsys_path}/namespaces/${nsid}"
-
-	if [[ $# -eq 4 ]]; then
-		uuid="$4"
-	fi
 
 	mkdir "${ns_path}"
 	printf "%s" "${blkdev}" > "${ns_path}/device_path"
 	printf "%s" "${uuid}" > "${ns_path}/device_uuid"
+	if (( grpid != 1 )); then
+		printf "%d" "${grpid}" > "${ns_path}/ana_grpid"
+	fi
 	printf 1 > "${ns_path}/enable"
 }
 
