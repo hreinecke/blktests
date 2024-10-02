@@ -541,6 +541,16 @@ _create_nvmet_ns() {
 	echo "${uuid}"
 }
 
+_get_nvmet_ns_blkdev() {
+	local nvmet_subsystem="$1"
+	local nsid="$2"
+	local subsys_path="${NVMET_CFS}/subsystems/${nvmet_subsystem}"
+	local ns_path="${subsys_path}/namespaces/${nsid}"
+
+	blkdev="$(cat ${ns_path}/device_path)"
+	echo "${blkdev}"
+}
+
 _setup_nvmet_ns_ana() {
 	local nvmet_subsystem="$1"
 	local nsid="$2"
