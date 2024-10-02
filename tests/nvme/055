@@ -1,0 +1,105 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0+
+# Copyright (C) 2024 Hannes Reinecke (SUSE) <hare@suse.de>
+#
+# Test rapid remapping of namespaces
+
+. tests/nvme/rc
+
+DESCRIPTION="test rapid namespace remapping"
+
+requires() {
+	_nvme_requires
+	_have_loop
+	_have_fio
+	_require_nvme_trtype_is_fabrics
+}
+
+set_conditions() {
+	_set_nvme_trtype "$@"
+}
+
+_setup_ana() {
+	local portno=0
+
+	for port in "$@"; do
+		if (( portno == 0 )); then
+			_setup_nvmet_port_ana "${port}" 1 "optimized"
+			_setup_nvmet_port_ana "${port}" 2 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 3 "inaccessible"
+		elif (( portno == 1 )); then
+			_setup_nvmet_port_ana "${port}" 1 "non-optimized"
+			_setup_nvmet_port_ana "${port}" 2 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 3 "inaccessible"
+		elif (( portno == 2 )); then
+			_setup_nvmet_port_ana "${port}" 1 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 2 "optimized"
+			_setup_nvmet_port_ana "${port}" 3 "inaccessible"
+		elif (( portno == 3 )); then
+			_setup_nvmet_port_ana "${port}" 1 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 2 "non-optimized"
+			_setup_nvmet_port_ana "${port}" 3 "inaccessible"
+		elif (( portno == 4 )); then
+			_setup_nvmet_port_ana "${port}" 1 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 2 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 3 "optimized"
+		else
+			_setup_nvmet_port_ana "${port}" 1 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 2 "inaccessible"
+			_setup_nvmet_port_ana "${port}" 3 "non-optimized"
+		fi
+		portno=$(( portno + 1 ))
+	done
+}
+
+_remap_ns() {
+	local nvmet_subsystem="$1"
+	local grpid="$2"
+	local nsid=1
+	local new_uuid
+	local blkdev_type="${nvmet_blkdev_type}"
+	local blkdev
+
+	_remove_nvmet_ns "${nvmet_subsystem}" "${nsid}"
+	new_uuid=$(uuidgen)
+	if [[ "${blkdev_type}" == "device" ]]; then
+		blkdev="$(losetup -f --show "$(_nvme_def_file_path)")"
+	else
+		blkdev="$(_nvme_def_file_path)"
+	fi
+	_create_nvmet_ns "${nvmet_subsystem}" "${nsid}" "${blkdev}" \
+			 "${new_uuid}" "${grpid}"
+}
+
+test() {
+	echo "Running ${TEST_NAME}"
+
+	_setup_nvmet
+
+	local subsysnqn="${def_subsysnqn}"
+	local nvmedev
+	local fio_pid
+	local ns
+	local ports
+	local ctrls
+
+	_nvmet_target_setup --ports 6
+
+	_get_nvmet_ports "${subsysnqn}" ports
+	_setup_ana "${ports[@]}"
+
+	_nvme_connect_subsys
+
+	# Simulate unmap on one cluster node and remap to anther one
+	echo "Remap namespace #1"
+	_remap_ns ${subsysnqn} 2
+	echo "Remap namespace #2"
+	_remap_ns ${subsysnqn} 3
+	echo "Remap namespace #0"
+	_remap_ns ${subsysnqn} 1
+
+	_nvme_disconnect_subsys
+	_nvmet_target_cleanup
+
+	echo "Test complete"
+}
