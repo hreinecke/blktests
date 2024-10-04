@@ -531,6 +531,9 @@ _create_nvmet_subsystem() {
 
 	mkdir -p "${cfs_path}"
 	echo 0 > "${cfs_path}/attr_allow_any_host"
+	if [[ -z "${blkdev}" ]]; then
+		return
+	fi
 	ARGS+=(--subsysnqn "${nvmet_subsystem}")
 	ARGS+=(--blkdev "${blkdev}")
 	if [[ -n "$uuid" ]]; then
