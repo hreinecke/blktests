@@ -234,7 +234,6 @@ _nvme_disconnect_ctrl() {
 }
 
 _nvme_connect_subsys() {
-	local port="${1:-}"
 	local subsysnqn="$def_subsysnqn"
 	local hostnqn="$def_hostnqn"
 	local hostid="$def_hostid"
@@ -247,10 +246,15 @@ _nvme_connect_subsys() {
 	local reconnect_delay=""
 	local ctrl_loss_tmo=""
 	local no_wait=false
+	local port
 	local i
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
+			--port)
+				port="$2"
+				shift 2
+				;;
 			--subsysnqn)
 				subsysnqn="$2"
 				shift 2
@@ -308,13 +312,10 @@ _nvme_connect_subsys() {
 
 	if [[ -z "${port}" ]]; then
 		local ports
+		local p
 
 		_get_nvmet_ports "${subsysnqn}" ports
-		for port in "${ports[@]}"; do
-			if [[ -z "${port}" ]]; then
-				break;
-			fi
-		done
+		port="${ports[0]##*/}"
 		if [[ -z "${port}" ]]; then
 			echo "WARNING: no port found"
 			return 1
