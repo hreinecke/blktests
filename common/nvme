@@ -601,6 +601,7 @@ _remove_nvmet_subsystem() {
 	local subsys_path="${NVMET_CFS}/subsystems/${nvmet_subsystem}"
 
 	for n in "${subsys_path}/namespaces/"*; do
+		[ -d "${n}" ] || continue
 		_remove_nvmet_ns "${nvmet_subsystem}" "${n##*/}"
 	done
 	rm -f "${subsys_path}"/allowed_hosts/*
