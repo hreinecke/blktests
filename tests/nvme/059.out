@@ -1,0 +1,10 @@
+Running nvme/059
+0 namespaces active
+switch ANA group 3 to 'optimized'
+1 namespaces active
+switch ANA group 2 to 'optimized'
+2 namespaces active
+switch ANA group 1 to 'optimized'
+3 namespaces active
+disconnected 4 controller(s)
+Test complete
